@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <immintrin.h>
+#include <time.h>
 // Cantidad de segundos en un dia: 86400
 #define VALORES_POR_SENSOR 86400
 
@@ -28,10 +29,14 @@ int main()
     double *vec_condiciones;
 
     // Declaracion de variables
-    int i, x, cantElementosPorRegistro, cantIteracionesPorRegistro;
+    int i, cantElementosPorRegistro, cantIteracionesPorRegistro;
+    short int x, z;
+    char j;
     int type_sensor_size;
     double total_tempAire, total_humAire, total_humSuelo;
     double rand_num, acum;
+
+    clock_t begin = clock();
 
     type_sensor_size = sizeof(double);                                          // 8
     cantElementosPorRegistro = sizeof(__m256d) / type_sensor_size;              // 4
@@ -50,10 +55,13 @@ int main()
         return 1;
     }
 
-    for (x = 0; x < VALORES_POR_SENSOR; x++)
+    for (i = 0; i < VALORES_POR_SENSOR; i += 4)
     { // TODO Loop Unrolling
         // Llenamos los vectores con valores random entre -40 y 50
-        vec_tempAire[x] = (double)rand() / ((double)RAND_MAX) * rand_num - 40;
+        vec_tempAire[i] = (double)rand() / ((double)RAND_MAX) * rand_num - 40;
+        vec_tempAire[i + 1] = (double)rand() / ((double)RAND_MAX) * rand_num - 40;
+        vec_tempAire[i + 2] = (double)rand() / ((double)RAND_MAX) * rand_num - 40;
+        vec_tempAire[i + 3] = (double)rand() / ((double)RAND_MAX) * rand_num - 40;
     }
 
     rand_num = 100.0;
@@ -61,10 +69,13 @@ int main()
     {
         return 1;
     }
-    for (x = 0; x < VALORES_POR_SENSOR; x++)
+    for (i = 0; i < VALORES_POR_SENSOR; i += 4)
     { // TODO Loop Unrolling
         // Llenamos los vectores con valores random entre 0 y 100
-        vec_humAire[x] = (double)rand() / ((double)RAND_MAX) * rand_num;
+        vec_humAire[i] = (double)rand() / ((double)RAND_MAX) * rand_num;
+        vec_humAire[i + 1] = (double)rand() / ((double)RAND_MAX) * rand_num;
+        vec_humAire[i + 2] = (double)rand() / ((double)RAND_MAX) * rand_num;
+        vec_humAire[i + 3] = (double)rand() / ((double)RAND_MAX) * rand_num;
     }
 
     //vec_vec_humSuelo = malloc(CANT_SENSORES_HUM_SUELO * type_sensor_size);
@@ -73,18 +84,21 @@ int main()
         return 1;
     }
 
-    for (i = 0; i < CANT_SENSORES_HUM_SUELO; i++)
+    for (x = 0; x < CANT_SENSORES_HUM_SUELO; x++)
     { // TODO Loop Unrolling
         // Allocate memoria para los valores de los sensores de humedad del suelo
         //vec_vec_humSuelo[i] = malloc(VALORES_POR_SENSOR * type_sensor_size);
-        if (posix_memalign((void **)&vec_vec_humSuelo[i], 32, VALORES_POR_SENSOR * type_sensor_size) != 0)
+        if (posix_memalign((void **)&vec_vec_humSuelo[x], 32, VALORES_POR_SENSOR * type_sensor_size) != 0)
         {
             return 1;
         }
-        for (x = 0; x < VALORES_POR_SENSOR; x++)
+        for (i = 0; i < VALORES_POR_SENSOR; i += 4)
         { // TODO Loop Unrolling
             // Llenamos los vectores con valores random entre 0 y 100
-            vec_vec_humSuelo[i][x] = (double)rand() / ((double)RAND_MAX) * rand_num;
+            vec_vec_humSuelo[x][i] = (double)rand() / ((double)RAND_MAX) * rand_num;
+            vec_vec_humSuelo[x][i + 1] = (double)rand() / ((double)RAND_MAX) * rand_num;
+            vec_vec_humSuelo[x][i + 2] = (double)rand() / ((double)RAND_MAX) * rand_num;
+            vec_vec_humSuelo[x][i + 3] = (double)rand() / ((double)RAND_MAX) * rand_num;
         }
     }
 
@@ -116,19 +130,19 @@ int main()
     {
         return 1;
     }
-    for (i = 0; i < cantElementosPorRegistro; i++)
+    for (j = 0; j < cantElementosPorRegistro; j++)
     {
-        vec_condiciones[i] = 75.0;
+        vec_condiciones[j] = 75.0;
     }
     x = cantElementosPorRegistro * 2;
-    for (i = cantElementosPorRegistro; i < x; i++)
+    for (j = cantElementosPorRegistro; j < x; j++)
     {
-        vec_condiciones[i] = 1.0;
+        vec_condiciones[j] = 1.0;
     }
     x = cantElementosPorRegistro * 3;
-    for (i = cantElementosPorRegistro * 2; i < x; i++)
+    for (j = cantElementosPorRegistro * 2; j < x; j++)
     {
-        vec_condiciones[i] = 0.0;
+        vec_condiciones[j] = 0.0;
     }
 
     // Cargar el valor de los 4 elementos en el registro
@@ -137,20 +151,20 @@ int main()
     reg_comp_b = _mm256_load_pd((double const *)vec_condiciones + (cantElementosPorRegistro));   // 1
     reg_acum = _mm256_load_pd((double const *)vec_condiciones + (cantElementosPorRegistro * 2)); // 0
 
-    for (i = 0; i < cantIteracionesPorRegistro; i++)
+    for (x = 0; x < cantIteracionesPorRegistro; x++)
     {
-        reg_actual = _mm256_load_pd((double const *)vec_humAire + (i * cantElementosPorRegistro));
-        reg_actual = _mm256_cmp_pd(reg_actual, reg_comp_a, 2); // 2 => Less or Equal
-        reg_actual = _mm256_and_pd(reg_actual, reg_comp_b);    // AND con el valor 1
+        reg_actual = _mm256_load_pd((double const *)vec_humAire + (x * cantElementosPorRegistro));
+        reg_actual = _mm256_cmp_pd(reg_actual, reg_comp_a, 14); // 14 => Greater than
+        reg_actual = _mm256_and_pd(reg_actual, reg_comp_b);     // AND con el valor 1
         reg_acum = _mm256_add_pd(reg_actual, reg_acum);
     }
 
     _mm256_store_pd((double *)vec_res_humAire, reg_acum);
 
     acum = 0.0;
-    for (i = 0; i < cantElementosPorRegistro; i++)
+    for (j = 0; j < cantElementosPorRegistro; j++)
     {
-        acum += vec_res_humAire[i];
+        acum += vec_res_humAire[j];
     }
     total_humAire = acum;
 
@@ -163,24 +177,24 @@ int main()
     {
         return 1;
     }
-    for (i = 0; i < cantElementosPorRegistro; i++)
+    for (j = 0; j < cantElementosPorRegistro; j++)
     {
-        vec_condiciones[i] = 30.0;
+        vec_condiciones[j] = 30.0;
     }
     x = cantElementosPorRegistro * 2;
-    for (i = cantElementosPorRegistro; i < x; i++)
+    for (j = cantElementosPorRegistro; j < x; j++)
     {
-        vec_condiciones[i] = 20.0;
+        vec_condiciones[j] = 20.0;
     }
     x = cantElementosPorRegistro * 3;
-    for (i = cantElementosPorRegistro * 2; i < x; i++)
+    for (j = cantElementosPorRegistro * 2; j < x; j++)
     {
-        vec_condiciones[i] = 1.0;
+        vec_condiciones[j] = 1.0;
     }
     x = cantElementosPorRegistro * 4;
-    for (i = cantElementosPorRegistro * 3; i < x; i++)
+    for (j = cantElementosPorRegistro * 3; j < x; j++)
     {
-        vec_condiciones[i] = 0.0;
+        vec_condiciones[j] = 0.0;
     }
 
     // Cargar el valor de los 4 elementos en el registro
@@ -189,11 +203,11 @@ int main()
     reg_comp_c = _mm256_load_pd((double const *)vec_condiciones + (cantElementosPorRegistro * 2)); // 1
     reg_acum = _mm256_load_pd((double const *)vec_condiciones + (cantElementosPorRegistro * 3));   // 0
 
-    for (i = 0; i < cantIteracionesPorRegistro; i++)
+    for (x = 0; x < cantIteracionesPorRegistro; x++)
     {
-        reg_actual = _mm256_load_pd((double const *)vec_tempAire + (i * cantElementosPorRegistro));
+        reg_actual = _mm256_load_pd((double const *)vec_tempAire + (x * cantElementosPorRegistro));
         reg_actual_temporal = _mm256_cmp_pd(reg_actual, reg_comp_a, 2); // 2 => Less or Equal
-        reg_actual = _mm256_cmp_pd(reg_actual, reg_comp_b, 13);         // 13 => Greater than or Equal
+        reg_actual = _mm256_cmp_pd(reg_actual, reg_comp_b, 13);         // 13 => Greater than
         reg_actual = _mm256_and_pd(reg_actual, reg_actual_temporal);    // Aqui obtenemos solo los que dieron =/= 0 en ambas comparaciones
         reg_actual = _mm256_and_pd(reg_actual, reg_comp_c);             // AND con el valor 1
         reg_acum = _mm256_add_pd(reg_actual, reg_acum);
@@ -202,9 +216,9 @@ int main()
     _mm256_store_pd((double *)vec_res_tempAire, reg_acum);
 
     acum = 0.0;
-    for (i = 0; i < cantElementosPorRegistro; i++)
+    for (j = 0; j < cantElementosPorRegistro; j++)
     {
-        acum += vec_res_tempAire[i];
+        acum += vec_res_tempAire[j];
     }
     total_tempAire = acum;
 
@@ -217,19 +231,19 @@ int main()
     {
         return 1;
     }
-    for (i = 0; i < cantElementosPorRegistro; i++)
+    for (j = 0; j < cantElementosPorRegistro; j++)
     {
-        vec_condiciones[i] = 30.0;
+        vec_condiciones[j] = 30.0;
     }
     x = cantElementosPorRegistro * 2;
-    for (i = cantElementosPorRegistro; i < x; i++)
+    for (j = cantElementosPorRegistro; j < x; j++)
     {
-        vec_condiciones[i] = 1.0;
+        vec_condiciones[j] = 1.0;
     }
     x = cantElementosPorRegistro * 3;
-    for (i = cantElementosPorRegistro * 2; i < x; i++)
+    for (j = cantElementosPorRegistro * 2; j < x; j++)
     {
-        vec_condiciones[i] = 0.0;
+        vec_condiciones[j] = 0.0;
     }
 
     // Cargar el valor de los 4 elementos en el registro
@@ -237,12 +251,12 @@ int main()
     reg_comp_b = _mm256_load_pd((double const *)vec_condiciones + (cantElementosPorRegistro));   // 1
     reg_acum = _mm256_load_pd((double const *)vec_condiciones + (cantElementosPorRegistro * 2)); // 0
 
-    for (i = 0; i < CANT_SENSORES_HUM_SUELO; i++)
+    for (x = 0; x < CANT_SENSORES_HUM_SUELO; x++)
     {
-        for (x = 0; x < cantIteracionesPorRegistro; x++)
+        for (z = 0; z < cantIteracionesPorRegistro; z++)
         {
-            reg_actual = _mm256_load_pd((double const *)vec_vec_humSuelo[i] + (x * cantElementosPorRegistro));
-            reg_actual = _mm256_cmp_pd(reg_actual, reg_comp_a, 13); // 13 => Greater than or Equal
+            reg_actual = _mm256_load_pd((double const *)vec_vec_humSuelo[x] + (z * cantElementosPorRegistro));
+            reg_actual = _mm256_cmp_pd(reg_actual, reg_comp_a, 14); // 14 => Greater than
             reg_actual = _mm256_and_pd(reg_actual, reg_comp_b);     // AND con el valor 1
             reg_acum = _mm256_add_pd(reg_actual, reg_acum);
         }
@@ -251,15 +265,18 @@ int main()
     _mm256_store_pd((double *)vec_res_humSuelo, reg_acum);
 
     acum = 0.0;
-    for (i = 0; i < cantElementosPorRegistro; i++)
+    for (j = 0; j < cantElementosPorRegistro; j++)
     {
-        acum += vec_res_humSuelo[i];
+        acum += vec_res_humSuelo[j];
     }
     total_humSuelo = acum;
 
     free(vec_condiciones);
 
     // Imprimimos los resultados :)
+    clock_t end = clock();
+    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Tiempo de Ejecución: %lf s\n", time_spent);
     printf("Temperatura del Aire: [C] %lf [IC] %lf \n", total_tempAire, VALORES_POR_SENSOR - total_tempAire);
     printf("Humedad del Aire: [C] %lf [IC] %lf \n", total_humAire, VALORES_POR_SENSOR - total_humAire);
     printf("Humedad del Suelo: [C] %lf [IC] %lf \n", total_humSuelo, (VALORES_POR_SENSOR * CANT_SENSORES_HUM_SUELO) - total_humSuelo);
